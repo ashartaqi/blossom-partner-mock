@@ -1,0 +1,23 @@
+{% extends "oidc/base.html" %}
+{% block title %}Sign-in problem — Blossom{% endblock %}
+
+{% comment %}
+Reached only when the request cannot safely be redirected back to the client —
+an unregistered redirect_uri, or an unknown client_id. Redirecting those would
+turn this endpoint into a relay for whatever host the caller named, so the error
+stops here instead.
+{% endcomment %}
+
+{% block body %}
+  <h1>We couldn't complete that sign-in</h1>
+  <p class="sub">
+    The app that sent you here made a request Blossom can't accept. Nothing about
+    your account has changed.
+  </p>
+
+  {# The code only. The description quotes the request back, and the request that
+     reaches this page is the one we could not verify. #}
+  <div class="error"><strong>{{ code }}</strong></div>
+
+  <a href="/"><button type="button" class="secondary">Back to Blossom</button></a>
+{% endblock %}

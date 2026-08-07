@@ -1,0 +1,12 @@
+Django>=5.2
+djangorestframework
+djangorestframework-simplejwt
+django-cors-headers
+python-dotenv
+requests
+
+# The OpenID Provider. Authlib owns every protocol decision in oidc/ — request
+# parsing, redirect_uri validation, PKCE comparison, ID token signing, spec-shaped
+# error responses. None of that is hand-rolled here, which is the point.
+authlib>=1.3,<2
+cryptography

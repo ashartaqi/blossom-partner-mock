@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Node
+node_modules/
+dist/
+*.log
+
+# Local configuration and data — never committed.
+# Each has a committed .env.example alongside it.
+.env
+.env.*
+!.env.example
+
+# The SQLite database. Holds real member rows, password hashes and OAuth client
+# secret hashes, so it stays local even though none of it is production data.
+db.sqlite3
+
+# The OIDC signing key. Private key material — regenerated on first run.
+keys/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

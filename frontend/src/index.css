@@ -1,0 +1,1490 @@
+/* Blossom partner platform.
+ *
+ * The layout deliberately mirrors the investing app — same rail, same active
+ * pill, same tools cluster, same content rhythm — so a member crossing between
+ * the two products never has to relearn where anything is.
+ *
+ * The palette deliberately does not. The investing app is cool navy on cool
+ * grey; this is plum on warm sand. During testing that is the fastest way to
+ * tell, at a glance and from across a desk, which of the two apps is on screen —
+ * which matters a great deal when the whole feature is "you moved between them
+ * and didn't notice". */
+
+:root {
+  /* Ink */
+  --ink: #2c1b2f;
+  --ink-soft: #6f5f74;
+  --ink-faint: #9a8ca0;
+
+  /* Plum accent */
+  --accent: #b0417a;
+  --accent-strong: #8e2f61;
+  --accent-tint: #fbeef4;
+  --accent-ink: #ffffff;
+
+  /* Surfaces — warm, to separate from the investing app's cool greys */
+  --page: #ffffff;
+  --canvas: #f8f3f6;
+  --surface: #efe3ea;
+  --line: #ece1e7;
+
+  --error: #b3261e;
+
+  --radius-rail: 13px;
+  --radius-card: 14px;
+
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--page);
+  min-height: 100dvh;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+/* ---------------------------------------------------------------- shell -- */
+
+.shell {
+  display: flex;
+  width: 100%;
+  min-height: 100dvh;
+}
+
+.shell-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.shell-content {
+  flex: 1;
+  /* Room for the mobile bar, which is fixed over the content. */
+  padding-bottom: 5.5rem;
+}
+
+@media (min-width: 1024px) {
+  .shell {
+    height: 100dvh;
+    overflow: hidden;
+  }
+  .shell-main {
+    height: 100dvh;
+    overflow: hidden;
+  }
+  .shell-content {
+    overflow-y: auto;
+    padding-bottom: 2rem;
+  }
+}
+
+/* -------------------------------------------------------------- sidebar -- */
+
+.sidebar {
+  display: none;
+  position: sticky;
+  top: 0;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 4.5rem;
+  height: calc(100dvh - 20px);
+  margin: 10px;
+  padding-bottom: 1rem;
+  background: var(--canvas);
+  border-radius: var(--radius-rail);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+@media (min-width: 1024px) {
+  .sidebar {
+    display: flex;
+  }
+}
+
+/* Labels only appear once there is room for them; below this the rail is
+   icon-only, exactly as the investing app behaves. */
+@media (min-width: 1280px) {
+  .sidebar {
+    width: 13.75rem;
+  }
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  justify-content: center;
+  padding: 1.25rem 0.75rem;
+  text-decoration: none;
+  color: var(--accent);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  flex-shrink: 0;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 9px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.brand-word {
+  display: none;
+  font-size: 1.05rem;
+}
+
+@media (min-width: 1280px) {
+  .sidebar-brand {
+    justify-content: flex-start;
+    padding-left: 1.25rem;
+  }
+  .brand-word {
+    display: inline;
+  }
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  min-height: 0;
+  padding: 0 0.75rem 0.5rem;
+  overflow-y: auto;
+}
+
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.nav-group-label {
+  display: none;
+  margin: 0;
+  padding: 1.25rem 1rem 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  color: var(--ink-soft);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.nav-item:hover {
+  background: rgba(176, 65, 122, 0.07);
+  color: var(--ink);
+}
+
+.nav-item.is-active {
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+.nav-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+}
+
+.nav-label {
+  display: none;
+  white-space: nowrap;
+}
+
+.sidebar-footer {
+  display: none;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 1.25rem 1.75rem;
+  font-size: 0.75rem;
+  color: var(--ink-faint);
+}
+
+@media (min-width: 1280px) {
+  .nav-group-label,
+  .nav-label,
+  .sidebar-footer {
+    display: block;
+  }
+  .nav-item {
+    justify-content: flex-start;
+  }
+}
+
+/* --------------------------------------------------------------- topbar -- */
+
+.topbar {
+  display: none;
+  position: relative;
+  z-index: 30;
+  height: 5.25rem;
+  flex: none;
+  background: var(--page);
+}
+
+@media (min-width: 1024px) {
+  .topbar {
+    display: flex;
+  }
+}
+
+.topbar-inner,
+.page {
+  width: 100%;
+  max-width: 69rem;
+  margin: 0 auto;
+  padding-left: 2.5rem;
+  padding-right: 2.5rem;
+}
+
+.topbar-inner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.account-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0.85rem 0.4rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--page);
+  color: var(--ink);
+  text-align: left;
+}
+
+.account-pill:hover {
+  background: var(--canvas);
+}
+
+.account-dot {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  background: linear-gradient(140deg, var(--accent), var(--accent-strong));
+  flex-shrink: 0;
+}
+
+.account-text {
+  display: grid;
+  line-height: 1.2;
+}
+
+.account-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.account-number {
+  font-size: 0.75rem;
+  color: var(--ink-faint);
+}
+
+.account-chevron {
+  width: 1rem;
+  height: 1rem;
+  color: var(--ink-faint);
+}
+
+.tools-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+  padding: 0.375rem 0.375rem 0.375rem 0.625rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  box-shadow: 0 1px 2px rgba(44, 27, 47, 0.05);
+}
+
+.tool {
+  display: grid;
+  place-items: center;
+  position: relative;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink-soft);
+}
+
+.tool:hover {
+  background: var(--canvas);
+  color: var(--ink);
+}
+
+.tool svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.tool.has-badge::after {
+  content: "";
+  position: absolute;
+  top: 0.2rem;
+  right: 0.2rem;
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--page);
+}
+
+.avatar {
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 999px;
+  object-fit: cover;
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.avatar-fallback {
+  display: grid;
+  place-items: center;
+  color: var(--accent-strong);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.tool-avatar {
+  margin-left: 0.35rem;
+}
+
+/* ---------------------------------------------------------- bottom nav -- */
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  display: flex;
+  background: var(--page);
+  border-top: 1px solid var(--line);
+  padding: 0.5rem 0 calc(0.5rem + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 1024px) {
+  .bottom-nav {
+    display: none;
+  }
+}
+
+.bottom-item {
+  flex: 1;
+  display: grid;
+  justify-items: center;
+  gap: 0.2rem;
+  padding: 0.25rem 0;
+  color: var(--ink-faint);
+  text-decoration: none;
+  font-size: 0.7rem;
+}
+
+.bottom-item.is-active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.bottom-icon {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+/* ----------------------------------------------------------- page body -- */
+
+.page {
+  padding-top: 1.5rem;
+  padding-bottom: 2.5rem;
+}
+
+@media (max-width: 1023px) {
+  .page {
+    padding: 1.5rem 1.25rem 2rem;
+  }
+}
+
+.page-header {
+  margin-bottom: 1.5rem;
+}
+
+.greeting {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.greeting-avatar {
+  width: 3rem;
+  height: 3rem;
+  font-size: 1rem;
+}
+
+.profile-identity {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.profile-avatar {
+  width: 3.5rem;
+  height: 3.5rem;
+  font-size: 1.1rem;
+}
+
+.profile-name {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.profile-email {
+  margin: 0.15rem 0 0;
+}
+
+.page-header h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.75rem;
+  letter-spacing: -0.02em;
+}
+
+.page-header p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+
+.card,
+.panel {
+  background: var(--page);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 1.5rem;
+}
+
+.panel + .panel {
+  margin-top: 1rem;
+}
+
+.panel h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+}
+
+.panel p {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+.panel.highlight {
+  border-color: rgba(176, 65, 122, 0.35);
+  background: var(--accent-tint);
+}
+
+.panel.highlight p {
+  color: var(--ink);
+}
+
+/* ----------------------------------------------------------- controls -- */
+
+.btn,
+a.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.7rem 1.15rem;
+  border: 0;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.925rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.btn:hover,
+a.btn:hover {
+  background: var(--accent-strong);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.btn-block {
+  width: 100%;
+  justify-content: center;
+}
+
+/* A destructive-ish action shouldn't wear the same weight as "Open Investments". */
+.btn-quiet {
+  background: var(--page);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  flex-shrink: 0;
+}
+
+.btn-quiet:hover {
+  background: var(--canvas);
+  color: var(--ink);
+}
+
+.sign-out-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.sign-out-panel h2 {
+  margin-bottom: 0.25rem;
+}
+
+.sign-out-panel p {
+  margin: 0;
+}
+
+.btn-link {
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: underline;
+}
+
+.btn-link:hover {
+  background: none;
+  color: var(--accent-strong);
+}
+
+label {
+  display: grid;
+  gap: 0.35rem;
+  /* A grid item's floor is its min-content width, and an <input>'s min-content
+     width is its `size` attribute — around 20 characters. Without this the
+     fields refuse to shrink and push straight out through the card. */
+  min-width: 0;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  color: var(--ink);
+  background: var(--page);
+}
+
+input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.row {
+  display: grid;
+  /* minmax(0, 1fr) rather than 1fr, for the same reason. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+/* ----------------------------------------------------- definition list -- */
+
+dl {
+  margin: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+dt {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--ink-faint);
+}
+
+dd {
+  margin: 0.3rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  background: var(--canvas);
+  padding: 0.15rem 0.4rem;
+  border-radius: 5px;
+  /* Long ids and URLs wrap instead of stretching the card sideways. */
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------------ auth page -- */
+
+/* A full-height centred column, not a floating card — the investing app's auth
+   shape. The seam between the two products should be invisible to a member. */
+.auth {
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+  background: var(--page);
+}
+
+.auth-column {
+  display: flex;
+  flex-direction: column;
+  /* Centred as one block rather than spread top-to-bottom. The investing app
+     stretches its auth column because it is a phone-first screen; on a desktop
+     browser the same rule leaves a lake of white between the heading and the
+     button. */
+  justify-content: center;
+  gap: 2rem;
+  width: 100%;
+  max-width: 26rem;
+  padding: 2.5rem 1.25rem;
+}
+
+.auth-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.auth-top {
+  display: grid;
+  justify-items: center;
+  gap: 1.25rem;
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 1.15rem;
+  text-decoration: none;
+}
+
+.auth-heading {
+  display: grid;
+  gap: 0.35rem;
+  text-align: center;
+}
+
+.auth-heading h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  letter-spacing: -0.02em;
+}
+
+.auth-heading p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+
+.auth-foot {
+  display: grid;
+  gap: 1.25rem;
+  flex-shrink: 0;
+}
+
+/* ------------------------------------------------------ floating fields -- */
+
+.field {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.field-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 3.5rem;
+  padding: 0 1rem;
+  border-radius: 12px;
+  background: var(--canvas);
+  transition: background-color 0.15s, box-shadow 0.15s;
+}
+
+/* Focus is shown on the box, not the input — the input is chromeless and its
+   ring would draw inside the filled area, on top of the floated label. */
+.field-box:focus-within {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.field-box.has-error {
+  box-shadow: inset 0 0 0 1px var(--error);
+}
+
+.field-input {
+  width: 100%;
+  min-width: 0;
+  padding: 1rem 0 0;
+  border: 0;
+  background: none;
+  font-size: 1rem;
+  line-height: 1.4;
+  color: var(--ink);
+  outline: none;
+}
+
+.field-input.has-trailing {
+  padding-right: 2rem;
+}
+
+/* Beats the bare `input:focus` rule further up, which is more specific than a
+   single class and would otherwise draw its ring inside this field. */
+.field-input:focus {
+  outline: none;
+}
+
+/* The placeholder is a single space, so :placeholder-shown means "empty" — and
+   unlike a React value check it is also true after browser autofill, which
+   fires no change event. */
+.field-input::placeholder {
+  color: transparent;
+}
+
+.field-label {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+  pointer-events: none;
+  transition: top 0.15s, font-size 0.15s, transform 0.15s;
+}
+
+.field-input:focus ~ .field-label,
+.field-input:not(:placeholder-shown) ~ .field-label {
+  top: 0.5rem;
+  transform: none;
+  font-size: 0.65rem;
+  letter-spacing: 0.02em;
+}
+
+.field-trailing {
+  position: absolute;
+  right: 0.75rem;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink-soft);
+}
+
+.field-trailing:hover {
+  color: var(--ink);
+}
+
+.field-trailing svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.field-hint,
+.field-error {
+  margin: 0;
+  padding: 0 0.25rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.field-hint {
+  color: var(--ink-faint);
+}
+
+.field-error {
+  color: var(--error);
+}
+
+.auth-alt {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.auth-alt a {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+/* ---------------------------------------------------- accounts & money -- */
+
+.switcher {
+  position: relative;
+}
+
+.account-pill.is-empty {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.6rem 0.9rem;
+  color: var(--ink-faint);
+  font-size: 0.85rem;
+}
+
+/* Colour by account type, so switching is legible at a glance and not only by
+   reading the name. */
+.account-dot.kind-checking {
+  background: linear-gradient(140deg, var(--accent), var(--accent-strong));
+}
+.account-dot.kind-savings {
+  background: linear-gradient(140deg, #2e7d53, #1b5c3a);
+}
+.account-dot.kind-credit {
+  background: linear-gradient(140deg, #5b5bd6, #3a3a9e);
+}
+
+.switcher-menu {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  z-index: 50;
+  min-width: 19rem;
+  margin: 0;
+  padding: 0.35rem;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--page);
+  box-shadow: 0 12px 28px rgba(44, 27, 47, 0.12);
+}
+
+.switcher-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  padding: 0.55rem 0.6rem;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  text-align: left;
+}
+
+.switcher-item:hover {
+  background: var(--canvas);
+}
+
+.switcher-item.is-active {
+  background: var(--accent-tint);
+}
+
+.switcher-balance {
+  margin-left: auto;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.balance-row,
+.account-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.balance-card {
+  display: grid;
+  gap: 0.2rem;
+  padding: 1.15rem 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+
+.balance-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--ink-faint);
+}
+
+.balance-value {
+  font-size: 1.55rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.balance-value.is-in {
+  color: #1f7a4d;
+}
+
+.balance-meta {
+  font-size: 0.75rem;
+  color: var(--ink-faint);
+}
+
+.account-card {
+  display: grid;
+  gap: 0.2rem;
+  padding: 1.15rem 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--page);
+  text-align: left;
+}
+
+.account-card:hover {
+  background: var(--canvas);
+}
+
+.account-card.is-active {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}
+
+.account-card-kind {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--ink-faint);
+}
+
+.account-card-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.account-card-balance {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.account-card-meta {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
+/* ------------------------------------------------------- transactions -- */
+
+.txn-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.txn {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.txn:last-child {
+  border-bottom: 0;
+}
+
+.txn-mark {
+  flex-shrink: 0;
+  width: 0.6rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.cat-groceries { background: #2e7d53; }
+.cat-dining { background: #b0473c; }
+.cat-transport { background: #1f6fb2; }
+.cat-bills { background: #a96f14; }
+.cat-shopping { background: #6d5ba6; }
+.cat-income { background: #1f7a4d; }
+.cat-transfer { background: #8a8194; }
+.cat-fees { background: #b3261e; }
+
+.txn-body {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.txn-desc {
+  font-size: 0.9rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.txn-meta {
+  font-size: 0.75rem;
+  color: var(--ink-faint);
+}
+
+.txn-pending {
+  color: #a35a00;
+  font-weight: 600;
+}
+
+.txn-amount {
+  flex-shrink: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.txn-amount.is-in {
+  color: #1f7a4d;
+}
+
+/* --------------------------------------------------- provider console -- */
+
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+}
+
+.tab {
+  flex-shrink: 0;
+  padding: 0.6rem 0.9rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.tab:hover {
+  color: var(--ink);
+}
+
+.tab.is-active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+.console-section {
+  display: grid;
+  gap: 1rem;
+}
+
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.section-head h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.15rem;
+}
+
+.section-head p {
+  margin: 0;
+  max-width: 46rem;
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.75rem;
+}
+
+.stat {
+  display: grid;
+  gap: 0.15rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+
+.stat-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--ink-faint);
+}
+
+.stat-note {
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+}
+
+.wide-code {
+  display: block;
+  padding: 0.7rem 0.85rem;
+  background: var(--page);
+}
+
+/* ------------------------------------------------------------- clients -- */
+
+.client-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.client {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+
+.client-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  padding: 1rem 1.25rem;
+  border: 0;
+  background: var(--page);
+  text-align: left;
+}
+
+.client-head:hover {
+  background: var(--canvas);
+}
+
+.client-title {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.client-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.chevron {
+  font-size: 0.6rem;
+  color: var(--ink-faint);
+}
+
+.tag {
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: var(--accent-tint);
+  color: var(--accent-strong);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.client-body {
+  padding: 0 1.25rem 1.25rem;
+  border-top: 1px solid var(--line);
+}
+
+.client-body dl {
+  padding-top: 1.25rem;
+}
+
+.client-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 1.25rem;
+}
+
+.client-edit {
+  display: grid;
+  gap: 1rem;
+  padding-top: 1.25rem;
+}
+
+.client-edit label {
+  gap: 0.4rem;
+}
+
+.client-edit .checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--ink);
+  font-weight: 400;
+}
+
+.client-edit .checkbox input {
+  width: auto;
+  accent-color: var(--accent);
+}
+
+textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--page);
+  resize: vertical;
+}
+
+textarea:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.confirm {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.btn-danger {
+  background: var(--error);
+}
+
+.btn-danger:hover {
+  background: #8f1d17;
+}
+
+.btn-link.danger {
+  color: var(--error);
+}
+
+/* Shown once, and never retrievable afterwards — so it gets to look urgent. */
+.secret-once {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  padding: 1.25rem;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-card);
+  background: var(--accent-tint);
+}
+
+.secret-once h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+.secret-once p {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.secret-value {
+  display: block;
+  padding: 0.6rem 0.8rem;
+  background: var(--page);
+  font-size: 0.85rem;
+  user-select: all;
+}
+
+/* ------------------------------------------------------------ activity -- */
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.table th {
+  padding: 0.5rem 0.75rem 0.5rem 0;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 0.6rem 0.75rem 0.6rem 0;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.table tr:last-child td {
+  border-bottom: 0;
+}
+
+.live {
+  color: #1f7a4d;
+  font-weight: 600;
+}
+
+.warn {
+  color: #a35a00;
+  font-weight: 600;
+}
+
+.panel h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+/* ------------------------------------------------------ developer page -- */
+
+.doc-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.doc-head h2 {
+  margin: 0;
+}
+
+.doc-link {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.doc-link:hover {
+  text-decoration: underline;
+}
+
+/* A JSON document, shown as it came off the wire. Scrolls inside its own box
+   rather than widening the page. */
+.doc {
+  margin: 0;
+  padding: 1rem;
+  max-height: 22rem;
+  overflow: auto;
+  border-radius: 10px;
+  background: var(--canvas);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+.flow {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.6rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+.flow strong {
+  color: var(--ink);
+}
+
+/* ------------------------------------------------------------- helpers -- */
+
+.muted {
+  color: var(--ink-soft);
+}
+
+.small {
+  font-size: 0.8rem;
+}
+
+.error {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: 9px;
+  background: #fdecea;
+  color: var(--error);
+  font-size: 0.85rem;
+}
+
+.centered {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  color: var(--ink-soft);
+}

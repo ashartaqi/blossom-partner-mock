@@ -1,0 +1,34 @@
+{% extends "oidc/base.html" %}
+{% block title %}Authorise {{ client.client_name }} — Blossom{% endblock %}
+
+{% comment %}
+Shown only for clients registered without `is_trusted`. Surmount is first-party —
+Blossom handing a member to Blossom's own investing product — so it skips this and
+the member sees nothing. The page exists because a third-party client must not.
+{% endcomment %}
+
+{% block body %}
+  <h1>{{ client.client_name }} wants to sign you in</h1>
+  <p class="sub">It will be able to see:</p>
+
+  <ul class="scopes">
+    {% for scope in scopes %}
+      {% if scope == "openid" %}<li>That this is your Blossom account</li>
+      {% elif scope == "profile" %}<li>Your name and profile picture</li>
+      {% elif scope == "email" %}<li>Your email address</li>
+      {% else %}<li><code>{{ scope }}</code></li>{% endif %}
+    {% endfor %}
+  </ul>
+
+  {# The OAuth parameters stay in the query string. Re-posting them in the body #}
+  {# would make each one appear twice, which the provider correctly rejects. #}
+  <form method="post" action="?{{ request.META.QUERY_STRING }}">
+    {% csrf_token %}
+    <div class="row">
+      <button type="submit" name="consent" value="deny" class="secondary">Cancel</button>
+      <button type="submit" name="consent" value="allow">Allow</button>
+    </div>
+  </form>
+
+  <p class="foot">Signed in as {{ request.user.email }}.</p>
+{% endblock %}
