@@ -79,6 +79,7 @@ class IntegrationView(APIView):
         from django.conf import settings
 
         from oidc.models import OAuth2Client
+        from oidc.server import user_claims
 
         def lines(value):
             return [line.strip() for line in (value or "").splitlines() if line.strip()]
@@ -106,9 +107,13 @@ class IntegrationView(APIView):
                 "discovery_url": f"{base}/.well-known/openid-configuration",
                 "jwks_url": f"{base}/.well-known/jwks.json",
                 "clients": clients,
-                # Produced by the same method the token endpoint calls, so the
+                # Produced by the same function the token and userinfo
+                # endpoints call, at the scope this client is granted — so the
                 # page cannot advertise one set of claims while the hand-off
-                # sends another.
-                "claims_for_you": request.user.sso_claims(),
+                # sends another. It previously showed the *token-exchange*
+                # shape (external_user_id/first_name), which OIDC never sends.
+                "claims_for_you": dict(
+                    user_claims(request.user, clients[0]["scope"] if clients else "openid")
+                ),
             }
         )

@@ -16,14 +16,12 @@ Two properties matter, and they pull in opposite directions:
     recomputes it, which also means editing this file never disturbs a picture
     that has already been handed out.
 
-The local SVG renderer below stays as the fallback: it covers members created
-before this, and working with no network.
+Every member has one: ``create_user`` assigns it, and ``PartnerUser.save``
+backstops anything created another way. There is no fallback renderer and no
+avatar route on this service — the claim is simply the stored URL.
 """
 
-import hashlib
 import secrets
-
-from django.http import HttpResponse
 
 DICEBEAR_BASE = "https://api.dicebear.com/9.x"
 
@@ -65,51 +63,3 @@ def new_avatar_url():
         f"{DICEBEAR_BASE}/{style}/png"
         f"?seed={seed}&backgroundColor={BACKGROUNDS}&radius=50&size=128"
     )
-
-
-# ---------------------------------------------------------------------------
-# Local fallback — no network required
-# ---------------------------------------------------------------------------
-
-# Picked to stay legible with white text on top.
-PALETTE = [
-    "#C2557F", "#0E6068", "#A96F14", "#5B5BD6",
-    "#2E7D53", "#B0473C", "#6D5BA6", "#1F6FB2",
-]
-
-
-def _initials(user):
-    first = (user.first_name or "").strip()
-    last = (user.last_name or "").strip()
-    letters = f"{first[:1]}{last[:1]}".upper()
-    return letters or (user.email[:1].upper() if user.email else "?")
-
-
-def _colour(seed):
-    # Hash rather than a counter so the colour is stable across restarts and
-    # doesn't depend on how many users exist.
-    digest = hashlib.sha256(str(seed).encode()).digest()
-    return PALETTE[digest[0] % len(PALETTE)]
-
-
-def avatar_svg(request, user_id):
-    """GET /avatar/<user_id>.svg — initials on a colour derived from the id."""
-    from partner.models import PartnerUser
-
-    user = PartnerUser.objects.filter(id=user_id).first()
-    initials = _initials(user) if user else "?"
-    colour = _colour(user_id)
-
-    svg = (
-        '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" '
-        'viewBox="0 0 128 128" role="img">'
-        f'<rect width="128" height="128" rx="64" fill="{colour}"/>'
-        '<text x="64" y="64" fill="#fff" font-size="52" font-weight="600" '
-        'font-family="system-ui, -apple-system, Segoe UI, sans-serif" '
-        f'text-anchor="middle" dominant-baseline="central">{initials}</text>'
-        "</svg>"
-    )
-
-    response = HttpResponse(svg, content_type="image/svg+xml")
-    response["Cache-Control"] = "public, max-age=3600"
-    return response

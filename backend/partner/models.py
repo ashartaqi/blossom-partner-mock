@@ -1,6 +1,5 @@
 import uuid
 
-from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
 
@@ -64,6 +63,16 @@ class PartnerUser(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return self.email
 
+    def save(self, *args, **kwargs):
+        # Last line of defence for the `picture` claim. ``create_user`` already
+        # assigns one, but a row made any other way — the admin, a fixture, a
+        # test calling ``objects.create`` — would otherwise reach the ID token
+        # with an empty picture. Filling it here means the field is never blank,
+        # which is what lets ``picture`` be a plain read with no fallback.
+        if not self.avatar_url:
+            self.avatar_url = new_avatar_url()
+        super().save(*args, **kwargs)
+
     @property
     def external_user_id(self):
         return str(self.id)
@@ -72,23 +81,12 @@ class PartnerUser(AbstractBaseUser, PermissionsMixin):
     def picture(self):
         """Profile picture URL.
 
-        Named ``picture`` because that is the OpenID Connect standard claim for it —
-        the same name Google and every other provider uses. Keeping partner claims on
-        the standard names means the eventual move to real OIDC is a rename of the
-        transport, not of the data.
+        Named ``picture`` because that is the OpenID Connect standard claim for
+        it — the same name Google and every other provider uses. Standard names
+        are why a relying party needs no Blossom-specific code to read this.
 
-        The stored URL is the member's real picture, drawn at signup. The local
-        renderer is only the fallback for rows that predate it, or for running
-        with no network.
+        Assigned once at signup and never recomputed, so it survives a rename and
+        does not change under the member.
         """
-        return self.avatar_url or f"{settings.PUBLIC_BASE_URL}/avatar/{self.id}.svg"
+        return self.avatar_url
 
-    def sso_claims(self):
-        """Exactly what we disclose to Surmount over the back-channel — no more."""
-        return {
-            "external_user_id": self.external_user_id,
-            "email": self.email,
-            "first_name": self.first_name,
-            "last_name": self.last_name,
-            "picture": self.picture,
-        }

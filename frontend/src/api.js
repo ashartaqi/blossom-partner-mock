@@ -99,9 +99,6 @@ export const api = {
       }),
   },
 
-  // Only used when Surmount is configured for the token-exchange fallback. On the
-  // OIDC path nothing is called at click time — Investments is a plain link.
-  ssoInitiate: () => request("/sso/initiate/", { method: "POST", body: {}, auth: true }),
 };
 
 /** Ends the browser session the OIDC endpoints rely on.

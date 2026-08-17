@@ -5,7 +5,7 @@ developed and tested end to end. It is also the reference implementation Blossom
 own developers can read: the `oidc` app is a working OpenID Provider, and it is
 roughly the amount of code standing one up actually takes.
 
-Nothing outside `oidc/` and `sso/` is production-grade. Those two deliberately are.
+Nothing outside `oidc/` is production-grade. That one deliberately is.
 """
 
 import os
@@ -49,7 +49,6 @@ INSTALLED_APPS = [
     "rest_framework",
     "partner",
     "oidc",
-    "sso",
     "banking",
 ]
 
@@ -183,21 +182,6 @@ AUTHLIB_OAUTH2_PROVIDER = {
 # partner. Two endpoints, a shared secret, the same one-time-code shape. Weaker
 # than OIDC in one specific way: the secret is symmetric, so both sides can mint
 # what the other verifies. Use OIDC unless you cannot.
-SSO = {
-    "CLIENT_ID": env("SSO_CLIENT_ID", "surmount-blossom"),
-    "CLIENT_SECRET": env("SSO_CLIENT_SECRET", "dev-shared-secret-change-me"),
-    "CODE_TTL_SECONDS": int(env("SSO_CODE_TTL_SECONDS", 60)),
-    # Exact-match allow-list. Without it /sso/initiate is an open redirect that
-    # hands a valid identity code to whatever host the caller names.
-    "ALLOWED_REDIRECT_URIS": env_list(
-        "SSO_ALLOWED_REDIRECT_URIS",
-        "http://localhost:8000/api/sso/blossom/token-exchange/callback/",
-    ),
-    "DEFAULT_REDIRECT_URI": env(
-        "SSO_DEFAULT_REDIRECT_URI",
-        "http://localhost:8000/api/sso/blossom/token-exchange/callback/",
-    ),
-}
 
 LOGGING = {
     "version": 1,
