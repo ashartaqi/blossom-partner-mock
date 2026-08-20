@@ -22,6 +22,9 @@ db.sqlite3
 # The OIDC signing key. Private key material — regenerated on first run.
 keys/
 
+# Generated PDF guides. Rebuilt from source, and large.
+docs/
+
 # OS / editor
 .DS_Store
 .idea/
