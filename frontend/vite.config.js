@@ -13,7 +13,11 @@ const TUNNEL_HOSTS = [
 ];
 
 // 5300 deliberately: blossom-fe and Surmount's own frontend both default to 4001.
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+  // A build is collected by Django's collectstatic and served under STATIC_URL,
+  // so the asset URLs in index.html have to carry that prefix. The dev server
+  // serves from the root, so this applies to the build only.
+  base: command === "build" ? "/static/" : "/",
   plugins: [react()],
   server: {
     port: 5300,
@@ -21,4 +25,4 @@ export default defineConfig({
     host: "localhost",
     allowedHosts: TUNNEL_HOSTS,
   },
-});
+}));

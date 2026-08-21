@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { api, BASE_HEADERS } from "../api";
+import { api } from "../api";
 import { useAuth } from "../auth";
 import ActivityPanel from "../components/ActivityPanel";
 import ClientsPanel from "../components/ClientsPanel";
@@ -198,9 +198,7 @@ export default function Developer() {
         setClaims(integration.claims_for_you);
         // Followed from the discovery document rather than a hardcoded path,
         // which is exactly how a relying party reaches it.
-        const keys = await fetch(doc.jwks_uri, {
-          headers: BASE_HEADERS,
-        }).then((r) => r.json());
+        const keys = await fetch(doc.jwks_uri).then((r) => r.json());
         if (!cancelled) setJwks(keys);
       } catch (err) {
         if (!cancelled) setError(err.message);

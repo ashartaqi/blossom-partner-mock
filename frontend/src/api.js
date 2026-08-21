@@ -1,8 +1,5 @@
 const BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:9000"
 
-// Skips ngrok's warning page, which otherwise replaces the response and reads as
-// a CORS error. Exported: absolute-URL fetches bypass `request` and need it too.
-export const BASE_HEADERS = { "ngrok-skip-browser-warning": "true" }
 
 const ACCESS_KEY = "blossom-platform:access"
 const REFRESH_KEY = "blossom-platform:refresh"
@@ -28,7 +25,7 @@ async function request(
   path,
   { method = "GET", body, auth = false, credentials } = {},
 ) {
-  const headers = { "Content-Type": "application/json", ...BASE_HEADERS }
+  const headers = { "Content-Type": "application/json" }
   if (auth) headers.Authorization = `Bearer ${tokens.access}`
 
   const response = await fetch(`${BASE}${path}`, {

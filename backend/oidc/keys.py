@@ -40,6 +40,13 @@ def _load_or_create() -> RSAKey:
     which matters because a reference implementation nobody can start is not a
     reference implementation.
     """
+    # A host with an ephemeral filesystem would generate a fresh key on every
+    # deploy, and a new key invalidates every token already issued. Supplying it
+    # here keeps the kid stable, since the kid is a thumbprint of the key itself.
+    pem = os.environ.get("OIDC_SIGNING_KEY_PEM")
+    if pem:
+        return RSAKey.import_key(pem.encode())
+
     path = _key_path()
 
     if path.exists():

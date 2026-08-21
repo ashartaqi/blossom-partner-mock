@@ -85,6 +85,10 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    # Directly after SecurityMiddleware, as WhiteNoise requires. Django stops
+    # serving static files once DEBUG is off; this puts that job back in-process
+    # so one server answers for both the API and the built SPA.
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -98,7 +102,7 @@ WSGI_APPLICATION = "config.wsgi.application"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates"],
+        "DIRS": [BASE_DIR / "templates", BASE_DIR.parent / "frontend" / "dist"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -128,6 +132,12 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 STATIC_URL = "static/"
+# Where collectstatic gathers everything, and where WhiteNoise serves from.
+STATIC_ROOT = BASE_DIR / "staticfiles"
+# The SPA build is collected alongside Django's own static files, which is what
+# lets one origin serve both. No CORS, and no cross-site cookie to arrange.
+_SPA_DIST = BASE_DIR.parent / "frontend" / "dist"
+STATICFILES_DIRS = [_SPA_DIST] if _SPA_DIST.exists() else []
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {

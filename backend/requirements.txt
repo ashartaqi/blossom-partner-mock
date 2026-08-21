@@ -5,6 +5,11 @@ django-cors-headers
 python-dotenv
 requests
 
+# Serving it. gunicorn runs the app; whitenoise serves the static files and the
+# built SPA, which Django itself will not do once DEBUG is off.
+gunicorn
+whitenoise
+
 # The OpenID Provider. Authlib owns every protocol decision in oidc/ — request
 # parsing, redirect_uri validation, PKCE comparison, ID token signing, spec-shaped
 # error responses. None of that is hand-rolled here, which is the point.
