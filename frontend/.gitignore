@@ -8,7 +8,9 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-dist
+# dist is committed: the free host has no build step, so the built SPA ships
+# with the repo and collectstatic picks it up from there.
+# dist
 dist-ssr
 *.local
 
