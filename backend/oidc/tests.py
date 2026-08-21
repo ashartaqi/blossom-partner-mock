@@ -8,9 +8,16 @@ Run with:  manage.py test oidc
 """
 
 import base64
+import os
 import time
 from urllib.parse import parse_qs, urlparse
 
+# Django's test client speaks plain http whatever the deployment issuer is, and
+# authlib refuses OAuth over http unless told otherwise. Without this the suite
+# fails entirely the moment .env points at an https issuer, such as a tunnel.
+os.environ["AUTHLIB_INSECURE_TRANSPORT"] = "1"
+
+from django.conf import settings
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -95,7 +102,7 @@ class DiscoveryTests(ProviderTestCase):
     def test_discovery_describes_this_provider(self):
         body = self.client.get(reverse("oidc-discovery")).json()
 
-        self.assertEqual(body["issuer"], "http://localhost:9000")
+        self.assertEqual(body["issuer"], settings.PUBLIC_BASE_URL)
         self.assertTrue(body["authorization_endpoint"].endswith("/oauth/authorize"))
         self.assertTrue(body["jwks_uri"].endswith("/.well-known/jwks.json"))
         self.assertEqual(body["response_types_supported"], ["code"])
@@ -258,7 +265,7 @@ class TokenTests(ProviderTestCase):
         jwks = self.client.get(reverse("oidc-jwks")).json()
         token = joserfc_jwt.decode(body["id_token"], KeySet.import_key_set(jwks))
 
-        self.assertEqual(token.claims["iss"], "http://localhost:9000")
+        self.assertEqual(token.claims["iss"], settings.PUBLIC_BASE_URL)
         self.assertEqual(token.claims["sub"], str(self.user.id))
         self.assertEqual(token.claims["aud"], [CLIENT_ID])
         self.assertEqual(token.claims["nonce"], "nonce-123")
@@ -476,3 +483,77 @@ def _urlencode(params):
     from urllib.parse import urlencode
 
     return urlencode(params)
+
+
+class ConsoleClientDeleteTests(ProviderTestCase):
+    """Removing a registration removes what it issued.
+
+    ``client_id`` on codes and tokens is a plain column, not a foreign key, so
+    none of this happens on its own.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.user.is_staff = True
+        self.user.save(update_fields=["is_staff"])
+        # The console API authenticates with a bearer token, like the web app —
+        # a Django session gets a 401 here, not a 403.
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        self.staff_auth = f"Bearer {RefreshToken.for_user(self.user).access_token}"
+
+    def console(self, method, path, **kwargs):
+        return getattr(self.client, method)(
+            path, HTTP_AUTHORIZATION=self.staff_auth, **kwargs
+        )
+
+    def test_deleting_a_client_takes_its_codes_and_tokens(self):
+        self.redeem(self.get_code())  # consumes that code, leaves a token
+        self.get_code()  # and one still live
+        self.assertEqual(OAuth2AuthorizationCode.objects.count(), 1)
+        self.assertEqual(OAuth2Token.objects.count(), 1)
+
+        response = self.console("delete", f"/api/provider/clients/{CLIENT_ID}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["codes"], 1)
+        self.assertEqual(response.json()["tokens"], 1)
+        self.assertEqual(OAuth2Client.objects.count(), 0)
+        self.assertEqual(OAuth2AuthorizationCode.objects.count(), 0)
+        self.assertEqual(OAuth2Token.objects.count(), 0)
+
+    def test_another_clients_activity_is_left_alone(self):
+        self.redeem(self.get_code())
+        self.get_code()
+        other = OAuth2Client(client_id="other-rp", redirect_uris=REDIRECT_URI)
+        other.set_secret("x")
+        other.save()
+
+        self.console("delete", "/api/provider/clients/other-rp/")
+
+        self.assertEqual(OAuth2AuthorizationCode.objects.count(), 1)
+        self.assertEqual(OAuth2Token.objects.count(), 1)
+
+    def test_activity_names_the_client_and_flags_a_missing_one(self):
+        self.get_code()
+
+        row = self.console("get", "/api/provider/activity/").json()["codes"][0]
+        self.assertEqual(row["client_id"], CLIENT_ID)
+        self.assertEqual(row["client_name"], "Test RP")
+        self.assertTrue(row["client_exists"])
+
+        # An orphan predating the cascade still reads as one.
+        OAuth2Client.objects.filter(client_id=CLIENT_ID).delete()
+        row = self.console("get", "/api/provider/activity/").json()["codes"][0]
+        self.assertFalse(row["client_exists"])
+        self.assertEqual(row["client_id"], CLIENT_ID)
+
+    def test_the_env_block_carries_the_secret_only_when_minted(self):
+        rotated = self.console(
+            "post", f"/api/provider/clients/{CLIENT_ID}/rotate-secret/"
+        ).json()
+        self.assertIn(rotated["client_secret"], rotated["relying_party_env"])
+
+        listed = self.console("get", "/api/provider/clients/").json()[0]
+        self.assertNotIn(rotated["client_secret"], listed["relying_party_env"])
+        self.assertIn("OIDC_ISSUER=", listed["relying_party_env"])

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { api } from "../api";
+import CopyField from "./CopyField";
 
 const BLANK = {
   client_id: "",
@@ -24,7 +25,7 @@ const fromLines = (text) =>
  *  value exists anywhere outside the client's own configuration. Saying so
  *  matters — a developer who assumes they can come back for it later will not
  *  copy it now. */
-function SecretOnce({ clientId, secret, onDismiss }) {
+function SecretOnce({ clientId, secret, env, onDismiss }) {
   return (
     <div className="secret-once">
       <div>
@@ -34,6 +35,14 @@ function SecretOnce({ clientId, secret, onDismiss }) {
           can only be replaced by rotating.
         </p>
         <code className="secret-value">{secret}</code>
+        {/* The secret is only half of it, and this is the one moment the whole
+            block can be handed over complete. */}
+        {env && (
+          <div className="secret-env">
+            <p className="small">Everything the integrating side needs:</p>
+            <CopyField label="Their .env" value={env} />
+          </div>
+        )}
       </div>
       <button type="button" className="btn btn-quiet" onClick={onDismiss}>
         Done
@@ -133,6 +142,12 @@ function ClientRow({ client, onChanged, onSecret, onError }) {
                   <code>{client.token_endpoint_auth_method}</code> ·{" "}
                   <code>{client.id_token_signed_response_alg}</code>
                 </dd>
+                <dt>their .env</dt>
+                <dd>
+                  {/* Available any time, secret aside — that one exists only in
+                      the response that minted it. */}
+                  <CopyField label="" value={client.relying_party_env} />
+                </dd>
                 <dt>consent screen</dt>
                 <dd>
                   {client.is_trusted ? "Skipped" : "Shown"}
@@ -158,6 +173,7 @@ function ClientRow({ client, onChanged, onSecret, onError }) {
                       onSecret({
                         clientId: client.client_id,
                         secret: updated.client_secret,
+                        env: updated.relying_party_env,
                       });
                     })
                   }
@@ -166,7 +182,10 @@ function ClientRow({ client, onChanged, onSecret, onError }) {
                 </button>
                 {confirmingDelete ? (
                   <span className="confirm">
-                    <span className="small">Delete {client.client_id}?</span>
+                    <span className="small">
+                      Delete {client.client_id}? Its codes and tokens go with
+                      it, so the activity list loses them too.
+                    </span>
                     <button
                       type="button"
                       className="btn btn-danger"
@@ -306,7 +325,11 @@ export default function ClientsPanel() {
         scope: form.scope,
         is_trusted: form.is_trusted,
       });
-      setSecret({ clientId: created.client_id, secret: created.client_secret });
+      setSecret({
+        clientId: created.client_id,
+        secret: created.client_secret,
+        env: created.relying_party_env,
+      });
       setForm(BLANK);
       setRegistering(false);
       await load();
@@ -347,6 +370,7 @@ export default function ClientsPanel() {
         <SecretOnce
           clientId={secret.clientId}
           secret={secret.secret}
+          env={secret.env}
           onDismiss={() => setSecret(null)}
         />
       )}

@@ -517,6 +517,16 @@ button {
   color: var(--ink-soft);
 }
 
+/* An operator error that will surface as somebody else's bug. Loud on purpose. */
+.panel.warning {
+  border-color: #a35a00;
+  background: #fff8ed;
+}
+
+.panel.warning h3 {
+  color: #7a4400;
+}
+
 .panel.highlight {
   border-color: rgba(176, 65, 122, 0.35);
   background: var(--accent-tint);
@@ -1132,7 +1142,14 @@ code {
 
 .console-section {
   display: grid;
+  /* minmax(0, 1fr), not 1fr: a grid track's floor is its widest content, and a
+     long discovery URL would otherwise push every panel past the page. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
+}
+
+.console-section > * {
+  min-width: 0;
 }
 
 .section-head {
@@ -1192,6 +1209,73 @@ code {
   display: block;
   padding: 0.7rem 0.85rem;
   background: var(--page);
+}
+
+/* ------------------------------------------------- hand-over values -- */
+
+.copy-field + .copy-field {
+  margin-top: 0.75rem;
+}
+
+.copy-label {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--ink-faint);
+}
+
+.copy-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+.copy-value {
+  flex: 1;
+  min-width: 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: 9px;
+  background: var(--page);
+  /* Selectable in one gesture for anyone who prefers not to trust the button. */
+  user-select: all;
+}
+
+.copy-btn {
+  flex-shrink: 0;
+  padding: 0 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--page);
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.copy-btn:hover {
+  background: var(--canvas);
+}
+
+.hand-note {
+  margin: 1rem 0 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+.doc-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-shrink: 0;
+}
+
+.endpoints dd {
+  margin-bottom: 0.15rem;
 }
 
 /* ------------------------------------------------------------- clients -- */

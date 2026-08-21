@@ -19,6 +19,7 @@ the provider's controls.
 """
 
 from django.conf import settings
+from django.db import transaction
 from django.db.models import Count
 from django.utils import timezone
 from rest_framework import status
@@ -59,7 +60,29 @@ def _client_json(client, secret=None):
     }
     if secret is not None:
         data["client_secret"] = secret
+    data["relying_party_env"] = _relying_party_env(client, secret)
     return data
+
+
+def _relying_party_env(client, secret=None):
+    """The four values the integrating side has to configure, ready to paste.
+
+    Every one of them is exact-match checked somewhere: the issuer against the
+    ``iss`` claim, the redirect URI against this registration, the client id and
+    secret at the token endpoint. Transcribing them by eye is how an integration
+    spends a morning on a typo, so the console hands them over verbatim.
+    """
+    prefix = f"SSO_{settings.PARTNER_SLUG.upper().replace('-', '_')}"
+    redirect = _lines(client.redirect_uris)
+    lines = [
+        f"{prefix}_OIDC_ISSUER={settings.PUBLIC_BASE_URL}",
+        f"{prefix}_OIDC_CLIENT_ID={client.client_id}",
+        # Only ever real in the response that minted it. Anywhere else this is a
+        # reminder of which variable it belongs in, not a recoverable value.
+        f"{prefix}_OIDC_CLIENT_SECRET={secret or '<shown once, when created or rotated>'}",
+        f"{prefix}_OIDC_REDIRECT_URI={redirect[0] if redirect else '<no redirect URI registered>'}",
+    ]
+    return "\n".join(lines)
 
 
 class ProviderOverview(APIView):
@@ -71,10 +94,20 @@ class ProviderOverview(APIView):
         base = settings.PUBLIC_BASE_URL
         now = timezone.now()
 
+        # The issuer is configuration, not something derived per request, because
+        # it is the `iss` claim and relying parties demand an exact match. That
+        # makes it easy to serve this through a tunnel and hand out URLs pointing
+        # at localhost, which fail on the other side for reasons the error does
+        # not explain. Report the origin the browser actually used so the console
+        # can say so out loud.
+        request_origin = f"{request.scheme}://{request.get_host()}"
+
         codes = OAuth2AuthorizationCode.objects.all()
         return Response(
             {
                 "issuer": base,
+                "request_origin": request_origin,
+                "issuer_matches_request": request_origin == base,
                 "endpoints": {
                     "discovery": f"{base}/.well-known/openid-configuration",
                     "jwks": f"{base}/.well-known/jwks.json",
@@ -223,11 +256,25 @@ class ClientDetail(APIView):
         return Response(_client_json(client))
 
     def delete(self, request, client_id):
+        """Remove the registration and everything it issued.
+
+        ``client_id`` on codes and tokens is a plain column, not a foreign key, so
+        nothing cascades on its own: deleting a client would otherwise leave its
+        activity behind, attributed to a client that no longer exists. Worse, a
+        client registered again under the same id would inherit it.
+        """
         client = self._get(client_id)
         if not client:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        client.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+
+        with transaction.atomic():
+            codes, _ = OAuth2AuthorizationCode.objects.filter(
+                client_id=client_id
+            ).delete()
+            tokens, _ = OAuth2Token.objects.filter(client_id=client_id).delete()
+            client.delete()
+
+        return Response({"client_id": client_id, "codes": codes, "tokens": tokens})
 
 
 class ClientRotateSecret(APIView):
@@ -265,6 +312,17 @@ class ProviderActivity(APIView):
 
     def get(self, request):
         now = timezone.now()
+        # One lookup for both tables. A row whose client has since been deleted
+        # keeps its id and reads as gone, rather than silently blank.
+        names = dict(OAuth2Client.objects.values_list("client_id", "client_name"))
+
+        def named(client_id):
+            return {
+                "client_id": client_id,
+                "client_name": names.get(client_id) or "",
+                "client_exists": client_id in names,
+            }
+
         codes = (
             OAuth2AuthorizationCode.objects.select_related("user")
             .order_by("-created_at")[: self.LIMIT]
@@ -278,7 +336,7 @@ class ProviderActivity(APIView):
                 "codes": [
                     {
                         "code_preview": f"{c.code[:8]}…",
-                        "client_id": c.client_id,
+                        **named(c.client_id),
                         "user": c.user.email,
                         "scope": c.scope,
                         "redirect_uri": c.redirect_uri,
@@ -291,7 +349,7 @@ class ProviderActivity(APIView):
                 "tokens": [
                     {
                         "token_preview": f"{t.access_token[:8]}…",
-                        "client_id": t.client_id,
+                        **named(t.client_id),
                         "user": t.user.email,
                         "scope": t.scope,
                         "issued_at": t.issued_at,

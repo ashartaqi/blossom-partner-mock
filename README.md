@@ -93,7 +93,7 @@ cd backend
 
 The client secret is printed **once**. Only its SHA-256 digest is stored, so it
 cannot be recovered — only replaced, with `--rotate-secret`. Put the printed
-value into Surmount's `.env` as `SSO_CLIENT_SECRET`.
+value into Surmount's `SSO_PARTNERS` config as the `CLIENT_SECRET` for `blossom`.
 
 ### 4. Give yourself the provider console
 
@@ -124,7 +124,6 @@ Nothing secret is committed. Both apps ship a `.env.example`; copy each to `.env
 | `ALLOWED_HOSTS` | Comma-separated. |
 | `CORS_ALLOWED_ORIGINS` | Must include `http://localhost:5300`. |
 | `PUBLIC_BASE_URL` | The issuer. Must match exactly what Surmount is configured with — an issuer mismatch fails ID token validation. |
-| `SSO_CLIENT_ID` / `SSO_CLIENT_SECRET` | Only for the legacy token-exchange fallback in `sso/`. **Must match Surmount's values exactly.** |
 
 Generate a key with:
 
@@ -219,10 +218,9 @@ backend/
     server.py      Authlib wiring — the entire protocol
     views.py       discovery, jwks, authorize, token, userinfo, login, logout
     console.py     The staff-only provider console API
-    tests.py       33 tests, mostly rejections
+    tests.py       37 tests, mostly rejections
   partner/         Members, avatars, Blossom's own API
   banking/         Accounts and transactions — what a member actually holds
-  sso/             Token-exchange fallback, for a partner with no provider
 
 frontend/
   src/pages/       Dashboard, Money, Profile, Developer, SignIn, SignUp

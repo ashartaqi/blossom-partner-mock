@@ -1,94 +1,119 @@
 import { useEffect, useState } from "react";
 
-import { api } from "../api";
+import { api, BASE_HEADERS } from "../api";
 import { useAuth } from "../auth";
 import ActivityPanel from "../components/ActivityPanel";
 import ClientsPanel from "../components/ClientsPanel";
+import CopyField from "../components/CopyField";
 
+/* Three tabs, one question each:
+ *
+ *   Integration — what do we send the team integrating with us?
+ *   Clients     — who is registered, and what may they do?
+ *   Activity    — is it actually working?
+ *
+ * They were four, and the split was wrong: "Overview" and "Reference" both held
+ * pieces of the hand-over, so answering the first question meant visiting two
+ * tabs and knowing which half lived where. */
 const TABS = [
-  { id: "overview", label: "Overview" },
+  { id: "integration", label: "Integration" },
   { id: "clients", label: "Clients" },
   { id: "activity", label: "Activity" },
-  { id: "reference", label: "Reference" },
 ];
 
-function Doc({ title, url, data }) {
+function RawDoc({ title, url, data }) {
+  const [open, setOpen] = useState(false);
   return (
     <div className="panel">
       <div className="doc-head">
         <h3>{title}</h3>
-        {url && (
-          <a className="doc-link" href={url} target="_blank" rel="noreferrer">
-            Open raw ↗
-          </a>
-        )}
+        <span className="doc-actions">
+          <button type="button" className="btn-link" onClick={() => setOpen((v) => !v)}>
+            {open ? "Hide" : "Show"} JSON
+          </button>
+          {url && (
+            <a className="doc-link" href={url} target="_blank" rel="noreferrer">
+              Open raw ↗
+            </a>
+          )}
+        </span>
       </div>
-      {data ? (
-        <pre className="doc">{JSON.stringify(data, null, 2)}</pre>
-      ) : (
-        <p className="muted small">Loading…</p>
-      )}
+      {/* Collapsed by default. It is reference material, not something anyone
+          needs on the way to copying the issuer URL. */}
+      {open &&
+        (data ? (
+          <pre className="doc">{JSON.stringify(data, null, 2)}</pre>
+        ) : (
+          <p className="muted small">Loading…</p>
+        ))}
     </div>
   );
 }
 
-function Stat({ label, value, note }) {
+/** Warns when the browser reached this console on a host the issuer does not
+ *  name. That is the normal state five seconds after starting a tunnel, and the
+ *  failure it causes lands on the other team as an unexplained rejected token. */
+function IssuerMismatch({ overview }) {
+  if (overview.issuer_matches_request !== false) return null;
   return (
-    <div className="stat">
-      <span className="stat-value">{value}</span>
-      <span className="stat-label">{label}</span>
-      {note && <span className="stat-note">{note}</span>}
+    <div className="panel warning">
+      <h3>The issuer does not match this address</h3>
+      <p>
+        You opened this console at <code>{overview.request_origin}</code>, but
+        the issuer is set to <code>{overview.issuer}</code>. Every URL below, and
+        the <code>iss</code> claim in every ID token, uses the issuer. A relying
+        party will reject tokens that name an address it cannot reach.
+      </p>
+      <p className="small">
+        Set this in <code>backend/.env</code> and restart:
+      </p>
+      <CopyField
+        label="PUBLIC_BASE_URL"
+        value={`PUBLIC_BASE_URL=${overview.request_origin}`}
+      />
     </div>
   );
 }
 
-function Overview({ overview }) {
+/** What the integrating team needs, in the order they need it. */
+function Integration({ overview, discovery, jwks, claims }) {
   if (!overview) return <p className="muted small">Loading…</p>;
-  const { endpoints, stats } = overview;
+  const { endpoints } = overview;
 
   return (
     <section className="console-section">
-      <div className="stat-row">
-        <Stat label="Clients" value={stats.clients} />
-        <Stat label="Codes issued" value={stats.codes_issued} />
-        <Stat
-          label="Codes live"
-          value={stats.codes_live}
-          note="60s each — near zero is normal"
-        />
-        <Stat label="Tokens issued" value={stats.tokens_issued} />
-        <Stat label="Tokens active" value={stats.tokens_active} />
-      </div>
+      <IssuerMismatch overview={overview} />
 
       <div className="panel highlight">
-        <h3>Give an integrator one URL</h3>
+        <h3>Send this to the integrating team</h3>
         <p>
-          Every endpoint, signing key and supported claim is discovered from the
-          document below, so nothing else has to be kept in step by hand.
+          Just the issuer. Every endpoint, signing key and supported claim is
+          read from the discovery document at that address, so nothing else has
+          to be kept in step by hand.
         </p>
-        <code className="wide-code">{endpoints.discovery}</code>
+        <CopyField label="Issuer" value={overview.issuer} />
+        <CopyField label="Discovery document" value={endpoints.discovery} />
       </div>
 
       <div className="panel">
         <h3>Endpoints</h3>
-        <dl>
-          <dt>Issuer</dt>
-          <dd>
-            <code>{overview.issuer}</code>
-          </dd>
+        <p className="small">
+          Listed for reference. An integrator reads all of these from the
+          discovery document rather than configuring them one by one.
+        </p>
+        <dl className="endpoints">
           <dt>Authorize</dt>
           <dd>
             <code>{endpoints.authorize}</code>
-            <span className="muted small">
-              {" "}
-              — a top-level navigation. Reads the member&rsquo;s session cookie,
+            <p className="muted small">
+              A browser navigation. It reads the member&rsquo;s session cookie,
               which is why they are not asked to sign in twice.
-            </span>
+            </p>
           </dd>
           <dt>Token</dt>
           <dd>
             <code>{endpoints.token}</code>
-            <span className="muted small"> — server-to-server, client secret required.</span>
+            <p className="muted small">Server to server. The client secret is required.</p>
           </dd>
           <dt>Userinfo</dt>
           <dd>
@@ -97,11 +122,10 @@ function Overview({ overview }) {
           <dt>JWKS</dt>
           <dd>
             <code>{endpoints.jwks}</code>
-            <span className="muted small">
-              {" "}
-              — public keys. An ID token whose signature is not verified against
-              these is just a claim.
-            </span>
+            <p className="muted small">
+              The public keys. An ID token whose signature is not checked against
+              these is only a claim.
+            </p>
           </dd>
           <dt>End session</dt>
           <dd>
@@ -109,18 +133,12 @@ function Overview({ overview }) {
           </dd>
         </dl>
       </div>
-    </section>
-  );
-}
 
-function Reference({ discovery, jwks, claims }) {
-  return (
-    <section className="console-section">
       <div className="panel">
-        <h3>Claims for your account</h3>
+        <h3>Claims they will receive</h3>
         <p className="small">
-          Produced by the same method the token endpoint calls, so this cannot
-          advertise one thing while the hand-off sends another.
+          Yours, built by the same function the token and userinfo endpoints
+          call, so this cannot show one shape while the hand-off sends another.
         </p>
         {claims ? (
           <pre className="doc">{JSON.stringify(claims, null, 2)}</pre>
@@ -129,29 +147,34 @@ function Reference({ discovery, jwks, claims }) {
         )}
         <p className="small">
           <strong>
-            <code>external_user_id</code> is the one hard requirement.
+            <code>sub</code> is the contract.
           </strong>{" "}
           It is stored and matched on forever, so it must be immutable and never
-          reused. Never matched on email: addresses get changed and recycled, and
-          a match against a recycled one would eventually hand a member someone
-          else&rsquo;s brokerage account.
+          reused. It is never matched on email, because addresses get changed and
+          recycled, and a match on a recycled one would eventually hand a member
+          someone else&rsquo;s account.
         </p>
       </div>
 
-      <Doc title="Discovery document" data={discovery} url={discovery?.issuer && `${discovery.issuer}/.well-known/openid-configuration`} />
-      <Doc title="Signing keys (JWKS)" data={jwks} url={discovery?.jwks_uri} />
+      <RawDoc
+        title="Discovery document"
+        url={endpoints.discovery}
+        data={discovery}
+      />
+      <RawDoc title="Signing keys (JWKS)" url={endpoints.jwks} data={jwks} />
     </section>
   );
 }
 
-/** The provider console.
+/**
+ * The provider console.
  *
- *  Not an integration guide with live values pasted in — the operator's view of
- *  a running OpenID Provider. Register a relying party, edit what it is allowed
- *  to do, rotate its credential, and watch authorizations actually flowing. */
+ * Not an integration guide with live values pasted in — the operator's view of a
+ * running OpenID Provider.
+ */
 export default function Developer() {
   const { user } = useAuth();
-  const [tab, setTab] = useState("overview");
+  const [tab, setTab] = useState("integration");
   const [overview, setOverview] = useState(null);
   const [discovery, setDiscovery] = useState(null);
   const [jwks, setJwks] = useState(null);
@@ -173,9 +196,11 @@ export default function Developer() {
         setOverview(ov);
         setDiscovery(doc);
         setClaims(integration.claims_for_you);
-        // Followed from the discovery document rather than a hardcoded path —
-        // exactly how a relying party reaches it.
-        const keys = await fetch(doc.jwks_uri).then((r) => r.json());
+        // Followed from the discovery document rather than a hardcoded path,
+        // which is exactly how a relying party reaches it.
+        const keys = await fetch(doc.jwks_uri, {
+          headers: BASE_HEADERS,
+        }).then((r) => r.json());
         if (!cancelled) setJwks(keys);
       } catch (err) {
         if (!cancelled) setError(err.message);
@@ -192,14 +217,14 @@ export default function Developer() {
       <div className="page">
         <header className="page-header">
           <h1>Provider console</h1>
-          <p>Operating the identity provider — registering integrations and their credentials.</p>
+          <p>Operating the identity provider — integrations and their credentials.</p>
         </header>
         <section className="panel">
           <h2>You don&rsquo;t have access</h2>
           <p>
             The console can register clients and rotate secrets, so it is
             staff-only. Members sign in through this same app, which is exactly
-            why it cannot just check that you are logged in.
+            why it cannot just check that you are signed in.
           </p>
           <p className="small">
             Grant it locally with:{" "}
@@ -240,12 +265,16 @@ export default function Developer() {
         ))}
       </nav>
 
-      {tab === "overview" && <Overview overview={overview} />}
+      {tab === "integration" && (
+        <Integration
+          overview={overview}
+          discovery={discovery}
+          jwks={jwks}
+          claims={claims}
+        />
+      )}
       {tab === "clients" && <ClientsPanel />}
       {tab === "activity" && <ActivityPanel />}
-      {tab === "reference" && (
-        <Reference discovery={discovery} jwks={jwks} claims={claims} />
-      )}
     </div>
   );
 }

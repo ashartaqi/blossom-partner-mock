@@ -11,6 +11,8 @@ Nothing outside `oidc/` is production-grade. That one deliberately is.
 import os
 from datetime import timedelta
 from pathlib import Path
+from corsheaders.defaults import default_headers as cors_default_headers
+from urllib.parse import urlsplit
 
 from dotenv import load_dotenv
 
@@ -34,9 +36,37 @@ SECRET_KEY = env("SECRET_KEY", "dev-only-insecure-mock-secret-do-not-ship")
 
 # Where this platform is reachable from a browser — used to build absolute URLs
 # for things we hand to another system, like the profile picture claim.
-PUBLIC_BASE_URL = env("PUBLIC_BASE_URL", "http://localhost:9000")
+PUBLIC_BASE_URL = env("PUBLIC_BASE_URL", "http://localhost:9000").rstrip("/")
+
+# How the relying party names this provider in its own configuration. Only used
+# to render the env block the console hands an integrator.
+PARTNER_SLUG = env("PARTNER_SLUG", "blossom")
 DEBUG = env_bool("DEBUG", True)
 ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0")
+
+# Serving through a tunnel (ngrok, Cloudflare) means requests arrive on a host
+# nobody remembered to list, and Django answers with DisallowedHost. Setting
+# PUBLIC_BASE_URL is the thing you cannot skip anyway — it becomes the issuer —
+# so trust it for the host list too rather than making it two settings that must
+# agree.
+# A tunnel terminates TLS and forwards over http, so request.scheme reads "http"
+# and disagrees with the issuer. Gated on https: only then is there a proxy.
+if PUBLIC_BASE_URL.startswith("https://"):
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+_public_host = urlsplit(PUBLIC_BASE_URL).hostname
+if _public_host and _public_host not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(_public_host)
+
+# Tunnels hand out a fresh random hostname every restart, so listing them is not
+# possible and DisallowedHost is the first thing anyone testing through one hits.
+# A leading dot is Django's wildcard for a domain and its subdomains.
+#
+# DEBUG only. In production ALLOWED_HOSTS is the check that stops a Host-header
+# attack, and a wildcard for somebody else's domain would be a hole in it.
+if DEBUG:
+    TUNNEL_HOSTS = [".ngrok.app", ".ngrok-free.app", ".ngrok.io", ".trycloudflare.com"]
+    ALLOWED_HOSTS += [h for h in TUNNEL_HOSTS if h not in ALLOWED_HOSTS]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -125,7 +155,20 @@ CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "http://localhost:5300,h
 # cookie. /oauth/authorize is a top-level navigation and can only see cookies —
 # a bearer token in localStorage is invisible to it.
 CORS_ALLOW_CREDENTIALS = True
-CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
+
+# The web app sends this to skip ngrok's warning page; not safelisted, so the
+# preflight rejects it unless it is allowed here.
+CORS_ALLOW_HEADERS = (*cors_default_headers, "ngrok-skip-browser-warning")
+CSRF_TRUSTED_ORIGINS = list(CORS_ALLOWED_ORIGINS)
+# Same reasoning as ALLOWED_HOSTS: through a tunnel the browser's origin is the
+# public URL, and a CSRF check against a list that only knows localhost rejects
+# the sign-in form that starts the whole hand-off.
+if PUBLIC_BASE_URL not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS.append(PUBLIC_BASE_URL)
+if DEBUG:
+    # Matching the ALLOWED_HOSTS wildcards above. CSRF_TRUSTED_ORIGINS needs the
+    # scheme, and tunnels are always https.
+    CSRF_TRUSTED_ORIGINS += [f"https://*{h}" for h in TUNNEL_HOSTS]
 
 # Lax, not Strict: the authorize request arrives as a top-level GET navigation
 # from Surmount's origin, which Lax allows and Strict would silently break —
@@ -133,10 +176,20 @@ CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 # Distinct from Surmount's. Cookies ignore the port, so two Django apps on
 # localhost would otherwise share one "sessionid" and overwrite each other.
 SESSION_COOKIE_NAME = "blossom_session"
-SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_SECURE = not DEBUG
+
+# Lax is correct when the web app and this backend are the same site, which they
+# are on localhost — ports do not affect same-site.
+#
+# Two tunnels put them on different sites, and a Lax cookie is then neither
+# stored nor sent on the web app's XHR, so signing in appears to succeed and
+# leaves no session. "None" is the fix, and browsers only accept it with Secure,
+# so the two move together. Set COOKIE_CROSS_SITE=True when tunnelling.
+COOKIE_CROSS_SITE = env_bool("COOKIE_CROSS_SITE", False)
+SESSION_COOKIE_SAMESITE = "None" if COOKIE_CROSS_SITE else "Lax"
+SESSION_COOKIE_SECURE = COOKIE_CROSS_SITE or not DEBUG
+CSRF_COOKIE_SAMESITE = SESSION_COOKIE_SAMESITE
+CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
 
 # Where @login_required sends a browser that reaches /oauth/authorize cold.
 LOGIN_URL = "/login/"

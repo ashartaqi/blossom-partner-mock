@@ -1,48 +1,57 @@
-const BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:9000";
+const BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:9000"
 
-const ACCESS_KEY = "blossom-platform:access";
-const REFRESH_KEY = "blossom-platform:refresh";
+// Skips ngrok's warning page, which otherwise replaces the response and reads as
+// a CORS error. Exported: absolute-URL fetches bypass `request` and need it too.
+export const BASE_HEADERS = { "ngrok-skip-browser-warning": "true" }
+
+const ACCESS_KEY = "blossom-platform:access"
+const REFRESH_KEY = "blossom-platform:refresh"
 
 export const tokens = {
   get access() {
-    return localStorage.getItem(ACCESS_KEY);
+    return localStorage.getItem(ACCESS_KEY)
   },
   get refresh() {
-    return localStorage.getItem(REFRESH_KEY);
+    return localStorage.getItem(REFRESH_KEY)
   },
   set({ access, refresh }) {
-    localStorage.setItem(ACCESS_KEY, access);
-    if (refresh) localStorage.setItem(REFRESH_KEY, refresh);
+    localStorage.setItem(ACCESS_KEY, access)
+    if (refresh) localStorage.setItem(REFRESH_KEY, refresh)
   },
   clear() {
-    localStorage.removeItem(ACCESS_KEY);
-    localStorage.removeItem(REFRESH_KEY);
+    localStorage.removeItem(ACCESS_KEY)
+    localStorage.removeItem(REFRESH_KEY)
   },
-};
+}
 
-async function request(path, { method = "GET", body, auth = false, credentials } = {}) {
-  const headers = { "Content-Type": "application/json" };
-  if (auth) headers.Authorization = `Bearer ${tokens.access}`;
+async function request(
+  path,
+  { method = "GET", body, auth = false, credentials } = {},
+) {
+  const headers = { "Content-Type": "application/json", ...BASE_HEADERS }
+  if (auth) headers.Authorization = `Bearer ${tokens.access}`
 
   const response = await fetch(`${BASE}${path}`, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
     credentials,
-  });
+  })
 
-  const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
+  const text = await response.text()
+  const data = text ? JSON.parse(text) : null
 
   if (!response.ok) {
     const message =
       data?.detail ||
       data?.error ||
-      (data && typeof data === "object" ? Object.values(data).flat().join(" ") : null) ||
-      `Request failed (${response.status})`;
-    throw new Error(message);
+      (data && typeof data === "object"
+        ? Object.values(data).flat().join(" ")
+        : null) ||
+      `Request failed (${response.status})`
+    throw new Error(message)
   }
-  return data;
+  return data
 }
 
 export const api = {
@@ -54,9 +63,17 @@ export const api = {
   // server session, and "include" is what lets the browser keep the Set-Cookie
   // that comes back from a cross-origin response.
   signup: (payload) =>
-    request("/api/auth/signup/", { method: "POST", body: payload, credentials: "include" }),
+    request("/api/auth/signup/", {
+      method: "POST",
+      body: payload,
+      credentials: "include",
+    }),
   login: (payload) =>
-    request("/api/auth/login/", { method: "POST", body: payload, credentials: "include" }),
+    request("/api/auth/login/", {
+      method: "POST",
+      body: payload,
+      credentials: "include",
+    }),
   me: () => request("/api/auth/me/", { auth: true }),
 
   /** The live OIDC registration, for the Developer page. */
@@ -71,7 +88,9 @@ export const api = {
     summary: () => request("/api/banking/summary/", { auth: true }),
     accounts: () => request("/api/banking/accounts/", { auth: true }),
     transactions: (accountId) =>
-      request(`/api/banking/accounts/${accountId}/transactions/`, { auth: true }),
+      request(`/api/banking/accounts/${accountId}/transactions/`, {
+        auth: true,
+      }),
   },
 
   /** The provider console. Staff only — every call here 403s otherwise. */
@@ -80,7 +99,11 @@ export const api = {
     activity: () => request("/api/provider/activity/", { auth: true }),
     clients: () => request("/api/provider/clients/", { auth: true }),
     createClient: (payload) =>
-      request("/api/provider/clients/", { method: "POST", body: payload, auth: true }),
+      request("/api/provider/clients/", {
+        method: "POST",
+        body: payload,
+        auth: true,
+      }),
     updateClient: (clientId, payload) =>
       request(`/api/provider/clients/${encodeURIComponent(clientId)}/`, {
         method: "PATCH",
@@ -93,13 +116,15 @@ export const api = {
         auth: true,
       }),
     rotateSecret: (clientId) =>
-      request(`/api/provider/clients/${encodeURIComponent(clientId)}/rotate-secret/`, {
-        method: "POST",
-        auth: true,
-      }),
+      request(
+        `/api/provider/clients/${encodeURIComponent(clientId)}/rotate-secret/`,
+        {
+          method: "POST",
+          auth: true,
+        },
+      ),
   },
-
-};
+}
 
 /** Ends the browser session the OIDC endpoints rely on.
  *
@@ -107,6 +132,7 @@ export const api = {
  * navigation. The session is already cleared by the time it replies, so there is
  * nothing here that needs to follow it. */
 export const endSession = () =>
-  fetch(`${BASE}/oauth/logout`, { credentials: "include", redirect: "manual" }).catch(
-    () => {}
-  );
+  fetch(`${BASE}/oauth/logout`, {
+    credentials: "include",
+    redirect: "manual",
+  }).catch(() => {})

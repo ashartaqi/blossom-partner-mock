@@ -11,13 +11,49 @@ const when = (value) =>
  *  issued with no token behind it means the client never reached /oauth/token —
  *  in practice always a wrong client secret or a redirect_uri that did not match
  *  the registration exactly. */
+/** The client a row belongs to. Deleting a client takes its activity with it,
+ *  so a missing one here is a row that predates that behaviour. */
+function Client({ row }) {
+  if (!row.client_exists) {
+    return (
+      <>
+        <code>{row.client_id}</code> <span className="muted">(deleted)</span>
+      </>
+    );
+  }
+  return (
+    <>
+      {row.client_name || <code>{row.client_id}</code>}
+      {row.client_name && <div className="muted small">{row.client_id}</div>}
+    </>
+  );
+}
+
+function Stat({ label, value, note }) {
+  return (
+    <div className="stat">
+      <span className="stat-value">{value}</span>
+      <span className="stat-label">{label}</span>
+      {note && <span className="stat-note">{note}</span>}
+    </div>
+  );
+}
+
 export default function ActivityPanel() {
   const [data, setData] = useState(null);
+  const [stats, setStats] = useState(null);
   const [error, setError] = useState(null);
 
   async function load() {
     try {
-      setData(await api.provider.activity());
+      // The counters live here rather than on the Integration tab: they say
+      // whether the hand-off is working, not what to hand over.
+      const [activity, overview] = await Promise.all([
+        api.provider.activity(),
+        api.provider.overview(),
+      ]);
+      setData(activity);
+      setStats(overview.stats);
     } catch (err) {
       setError(err.message);
     }
@@ -49,6 +85,20 @@ export default function ActivityPanel() {
         </p>
       )}
 
+      {stats && (
+        <div className="stat-row">
+          <Stat label="Clients" value={stats.clients} />
+          <Stat label="Codes issued" value={stats.codes_issued} />
+          <Stat
+            label="Codes live"
+            value={stats.codes_live}
+            note="60s each — near zero is normal"
+          />
+          <Stat label="Tokens issued" value={stats.tokens_issued} />
+          <Stat label="Tokens active" value={stats.tokens_active} />
+        </div>
+      )}
+
       {!data ? (
         <p className="muted small">Loading…</p>
       ) : (
@@ -78,7 +128,9 @@ export default function ActivityPanel() {
                         <td>
                           <code>{c.code_preview}</code>
                         </td>
-                        <td>{c.client_id}</td>
+                        <td>
+                          <Client row={c} />
+                        </td>
                         <td>{c.user}</td>
                         <td>{c.used_pkce ? "S256" : <span className="warn">none</span>}</td>
                         <td className="muted">{when(c.created_at)}</td>
@@ -120,7 +172,9 @@ export default function ActivityPanel() {
                         <td>
                           <code>{t.token_preview}</code>
                         </td>
-                        <td>{t.client_id}</td>
+                        <td>
+                          <Client row={t} />
+                        </td>
                         <td>{t.user}</td>
                         <td className="muted">{t.scope}</td>
                         <td className="muted">{when(t.issued_at)}</td>
