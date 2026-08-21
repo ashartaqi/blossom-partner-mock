@@ -15,3 +15,8 @@ whitenoise
 # error responses. None of that is hand-rolled here, which is the point.
 authlib>=1.3,<2
 cryptography
+
+# Imported directly by oidc/keys.py and the tests. It arrives as an Authlib
+# dependency today, but a library we import ourselves belongs here rather than
+# resting on someone else's dependency tree.
+joserfc
